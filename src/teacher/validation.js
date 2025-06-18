@@ -6,11 +6,11 @@ const name = Joi.string().trim().required().empty().messages({
     'string.empty': 'Teacher Name field is must be a non-empty',
 });
 
-const email = Joi.string().email().trim().required().empty().messages({
-    'any.required': 'Email field is required',
-    'string.base': 'Email field must be a string',
-    'string.email': 'Email field must be a valid email address',
-    'string.empty': 'Email field must be a non-empty',
+const userName = Joi.string().email().trim().required().empty().messages({
+    'any.required': 'UserName field is required',
+    'string.base': 'UserName field must be a string',
+    'string.email': 'UserName field must be a valid email address',
+    'string.empty': 'UserName field must be a non-empty',
 });
 
 const password = Joi.string().trim().required().empty().messages({
@@ -19,15 +19,85 @@ const password = Joi.string().trim().required().empty().messages({
     'string.empty': 'Password field must be a non-empty',
 });
 
+const PEN = Joi.string()
+    .trim()
+    .pattern(/^\d{9}$/)
+    .message('Invalid PEN format')
+    .required()
+    .empty()
+    .messages({
+        'any.required': 'PEN field is required',
+        'string.base': 'PEN field must be a string',
+        'string.empty': 'PEN field must be a non-empty',
+    });
+
+const studentName = Joi.string().trim().required().empty().messages({
+    'any.required': 'Student Name field is required',
+    'string.base': ' Student Name field must be a string',
+    'string.empty': 'Student Name field is must be a non-empty',
+});
+
+const className = Joi.number().integer().min(1).max(12).required().messages({
+    'any.required': 'Class field is required',
+    'number.base': 'Class field must be a number',
+    'number.min': 'Class field must be at least 1',
+    'number.max': 'Class field must be at most 12',
+});
+const section = Joi.string().valid('A', 'B', 'C', 'D', 'E').required().messages({
+    'any.required': 'Section field is required',
+    'string.base': 'Section field must be a string',
+    'any.only': 'Section must be one of A, B, C, D, or E',
+    'string.empty': 'Section field must be a non-empty string',
+});
+
+const language = Joi.array()
+    .items(
+        Joi.string().valid('telengu', 'english', 'maths').messages({
+            'any.only': 'Language must be one of telengu, english, or maths',
+            'string.base': 'Each language must be a string',
+            'string.empty': 'Language cannot be an empty string',
+        })
+    )
+    .min(1)
+    .required()
+    .messages({
+        'array.base': 'Language must be an array',
+        'array.min': 'Language array cannot be empty',
+        'any.required': 'Language field is required',
+    });
+
 const registerValidationSchema = Joi.object({
     name: name,
-    email: email,
+    userName: userName,
     password: password,
 });
 
 const loginValidationSchema = Joi.object({
-    email: email,
+    userName: userName,
     password: password,
 });
 
-export { registerValidationSchema, loginValidationSchema };
+const addStudentValidationSchema = Joi.object({
+    studentName: studentName,
+    PEN: PEN,
+    className: className,
+    section: section,
+    language: language,
+});
+
+const languageName = Joi.string().trim().empty().required().messages({
+    'any.required': 'Language field is required',
+    'string.base': ' Language field must be a string',
+    'string.empty': 'Language field is must be a non-empty',
+});
+
+const addLanguageValidationSchema = Joi.object({
+    languageName: languageName,
+});
+
+export {
+    registerValidationSchema,
+    loginValidationSchema,
+    addStudentValidationSchema,
+    addLanguageValidationSchema,
+};

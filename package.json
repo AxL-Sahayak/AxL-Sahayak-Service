@@ -2,13 +2,12 @@
   "name": "axl-sahayak-service",
   "version": "1.0.0",
   "description": "",
-  "type":"module",
+  "type": "module",
   "main": "src/app.js",
   "engines": {
     "node": "22.15.0",
     "npm": "11.3.0"
   },
-  
   "scripts": {
     "start": "NODE_ENV=prod node src/app.js",
     "devStart": "NODE_ENV=dev nodemon src/app.js",
@@ -42,6 +41,7 @@
     "cors": "2.8.5",
     "dotenv": "16.5.0",
     "express": "5.1.0",
+    "fs-extra": "11.3.0",
     "helmet": "8.1.0",
     "joi": "17.13.3",
     "jose": "6.0.11",

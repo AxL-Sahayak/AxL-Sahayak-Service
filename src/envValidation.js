@@ -11,8 +11,6 @@ const validateEnvFile = (envConfigFile, variablesToValidate) => {
 
         if (variablesToValidate.includes('APP_PORT')) {
             const port = parseInt(envConfigFile.APP_PORT);
-            console.log(port);
-
             if (isNaN(port) || port < 2000 || port > 9999) {
                 console.log('Invalid APP_PORT number', envConfigFile.APP_PORT);
                 process.exit(1);

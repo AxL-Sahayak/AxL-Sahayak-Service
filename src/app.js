@@ -30,7 +30,7 @@ const startServer = async () => {
 
     return new Promise((resolve) => {
         const server = app.listen(parseInt(APP_PORT), () => {
-            console.log(`Server is running on port ${APP_PORT}`);
+            console.log(`Server is running on port ${parseInt(APP_PORT)}`);
             logger.log('info', `Server is running on port ${APP_PORT}`);
             resolve(server);
         });
