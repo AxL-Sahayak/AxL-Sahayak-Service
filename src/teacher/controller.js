@@ -9,6 +9,7 @@ import {
     loginValidationSchema,
     addStudentValidationSchema,
     addLanguageValidationSchema,
+    mapStudentLanguageSchema,
 } from './validation.js';
 import { JWT_ENCRYPTION_PRIVATE_KEY, JWT_SIGNIN_PRIVATE_KEY } from '../config.js';
 import {
@@ -16,7 +17,7 @@ import {
     successResponse,
     errorResponse,
 } from '../utils/handleServerResponse.js';
-import * as teacherService from './service.js';
+import * as teacherService from './services/teacherService.js';
 import globalErrorHandler from '../utils/globalErrorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -100,81 +101,6 @@ const login = async (req, res) => {
     }
 };
 
-const getStudentByPEN = async (req, res) => {
-    try {
-        const { pen } = req.query;
-
-        if (!pen) {
-            const responseData = errorResponse(400, 'PEN is required');
-            return res.status(200).json(responseData);
-        }
-
-        const students = await fs.readJson(StudentFilePath);
-        const student = students.find((s) => s.PEN === pen);
-
-        // Check if student exists
-
-        if (student) {
-            const responseData = successResponse('Student fetched successfully', student);
-            return res.status(200).json(responseData);
-        } else {
-            const responseData = errorResponse(404, 'Student not found');
-            return res.status(200).json(responseData);
-        }
-    } catch (error) {
-        globalErrorHandler(res, error);
-    }
-};
-
-const addSingleStudent = async (req, res) => {
-    const userId = res.locals.decodedToken.payload._id;
-
-    try {
-        const { penId, section, language } = req.body;
-        if (!penId || !section || !language) {
-            const responseData = errorResponse(400, 'Required fields are missing');
-            return res.status(200).json(responseData);
-        }
-
-        const students = await fs.readJson(StudentFilePath);
-
-        const existingStudent = students.find((s) => s.PEN === penId);
-        if (!existingStudent) {
-            const responseData = errorResponse(400, 'Student not exists');
-            return res.status(200).json(responseData);
-        }
-
-        const existingDbStudent = await teacherService.getStudentByPEN(penId);
-        if (existingDbStudent) {
-            const responseData = errorResponse(400, 'Student already exists in the database');
-            return res.status(200).json(responseData);
-        }
-
-        const data = {
-            studentName: existingStudent.name,
-            PEN: existingStudent.PEN,
-            className: existingStudent.class,
-            section: section,
-            language: language,
-        };
-        const { error } = addStudentValidationSchema.validate(data);
-        if (error) {
-            const responseData = validationResponse(error.message);
-            return res.status(200).json(responseData);
-        }
-
-        const newStudent = await teacherService.addStudent({
-            ...data,
-            createdBy: userId,
-        });
-        const responseData = successResponse('Student added successfully', newStudent);
-
-        return res.status(200).json(responseData);
-    } catch (error) {
-        globalErrorHandler(res, error);
-    }
-};
-
 const addLanguage = async (req, res) => {
     try {
         const { languageName } = req.body;
@@ -205,7 +131,11 @@ const getAllLanguage = async (req, res) => {
     try {
         const languages = await teacherService.getAllLanguages();
         if (languages.length > 0) {
-            const responseData = successResponse('Languages fetched successfully', languages);
+            const data = languages.map((lang) => ({
+                id: lang._id.toString(),
+                title: lang.languageName,
+            }));
+            const responseData = successResponse('Languages fetched successfully', data);
             return res.status(200).json(responseData);
         } else {
             const responseData = errorResponse(404, 'No languages found');
@@ -216,4 +146,163 @@ const getAllLanguage = async (req, res) => {
     }
 };
 
-export { register, login, getStudentByPEN, addSingleStudent, addLanguage, getAllLanguage };
+const getStudentByPEN = async (req, res) => {
+    try {
+        const { pen } = req.query;
+
+        if (!pen) {
+            const responseData = errorResponse(400, 'PEN is required');
+            return res.status(200).json(responseData);
+        }
+
+        const students = await fs.readJson(StudentFilePath);
+        const student = students.find((s) => s.PEN === pen);
+
+        // Check if student exists
+
+        if (student) {
+            const responseData = successResponse('Student fetched successfully', student);
+            return res.status(200).json(responseData);
+        } else {
+            const responseData = errorResponse(404, 'Student not found');
+            return res.status(200).json(responseData);
+        }
+    } catch (error) {
+        globalErrorHandler(res, error);
+    }
+};
+
+const addSingleStudent = async (req, res) => {
+    const teacherId = res.locals.decodedToken.payload._id;
+
+    try {
+        const { penId, section, language } = req.body;
+
+        if (!penId || !section || !language) {
+            const responseData = errorResponse(400, 'Required fields are missing');
+            return res.status(200).json(responseData);
+        }
+
+        const students = await fs.readJson(StudentFilePath);
+        const matchedStudent = students.find((s) => s.PEN === penId);
+
+        if (!matchedStudent) {
+            return res.status(200).json(errorResponse(400, 'Student not found in PEN list'));
+        }
+
+        const existingMap = await teacherService.getTeachMapByStudentAndTeacher(teacherId, penId);
+        if (existingMap) {
+            return res.status(200).json(errorResponse(400, 'Student already added'));
+        }
+
+        const studentPayload = {
+            studentName: matchedStudent.name,
+            PEN: matchedStudent.PEN,
+            className: matchedStudent.class,
+            section,
+        };
+        const { error } = addStudentValidationSchema.validate({
+            ...studentPayload,
+            language: language,
+        });
+        if (error) {
+            return res.status(200).json(validationResponse(error.message));
+        }
+
+        const { error: langError } = mapStudentLanguageSchema.validate({ PEN: penId, language });
+        if (langError) {
+            return res.status(200).json(validationResponse(langError.message));
+        }
+
+        let existingDbStudent = await teacherService.getStudentByPEN(penId);
+        if (!existingDbStudent) {
+            existingDbStudent = await teacherService.addStudent({
+                ...studentPayload,
+                createdBy: teacherId,
+            });
+        }
+
+        await teacherService.addTeachMap(teacherId, existingDbStudent.PEN, language);
+        const myStudents = await teacherService.getMappedStudentPENsByTeacher(teacherId);
+
+        return res.status(200).json(
+            successResponse('Student added successfully', {
+                student: existingDbStudent,
+                myStudents: myStudents,
+            })
+        );
+    } catch (error) {
+        globalErrorHandler(res, error);
+    }
+};
+
+const getMyCohorts = async (req, res) => {
+    const teacherId = res.locals.decodedToken.payload._id;
+
+    try {
+        const mappings = await teacherService.getTeachMapsByTeacher(teacherId);
+
+        if (!mappings.length) {
+            return res.status(200).json(successResponse('No cohorts found', []));
+        }
+
+        const cohortMap = new Map();
+
+        for (const { penId, languages } of mappings) {
+            const student = await teacherService.getStudentByPEN(penId);
+            if (!student) continue;
+
+            languages.forEach((lang) => {
+                const cohortId = `${student.className}_${student.section}_${lang}`;
+                if (!cohortMap.has(cohortId)) {
+                    cohortMap.set(cohortId, {
+                        cohortId,
+                        cohortDetails: {
+                            class: student.className,
+                            section: student.section,
+                            language: lang,
+                        },
+                    });
+                }
+            });
+        }
+
+        return res
+            .status(200)
+            .json(successResponse('Cohorts fetched successfully', Array.from(cohortMap.values())));
+    } catch (err) {
+        globalErrorHandler(res, err);
+    }
+};
+
+const getStudentsByCohort = async (req, res) => {
+    const teacherId = res.locals.decodedToken.payload._id;
+    const { cohortId } = req.query;
+    if (!cohortId) {
+        return res.status(200).json(errorResponse(400, 'cohortId is required'));
+    }
+
+    const [className, section, language] = cohortId.split('_');
+    try {
+        const students = await teacherService.getStudentsByCohort(
+            teacherId,
+            className,
+            section,
+            language
+        );
+        return res.status(200).json(successResponse('Students fetched successfully', students));
+    } catch (err) {
+        globalErrorHandler(res, err);
+    }
+};
+
+export {
+    register,
+    login,
+    getStudentByPEN,
+    addSingleStudent,
+    addLanguage,
+    getAllLanguage,
+    getMyCohorts,
+    getStudentsByCohort,
+};

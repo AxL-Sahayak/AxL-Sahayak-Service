@@ -43,28 +43,33 @@ const className = Joi.number().integer().min(1).max(12).required().messages({
     'number.min': 'Class field must be at least 1',
     'number.max': 'Class field must be at most 12',
 });
-const section = Joi.string().valid('A', 'B', 'C', 'D', 'E').required().messages({
+const section = Joi.string().valid('A', 'B', 'C', 'D', 'E', 'F').required().messages({
     'any.required': 'Section field is required',
     'string.base': 'Section field must be a string',
-    'any.only': 'Section must be one of A, B, C, D, or E',
+    'any.only': 'Section must be one of A, B, C, D, E or F',
     'string.empty': 'Section field must be a non-empty string',
 });
 
-const language = Joi.array()
+const languageArray = Joi.array()
     .items(
-        Joi.string().valid('telengu', 'english', 'maths').messages({
-            'any.only': 'Language must be one of telengu, english, or maths',
-            'string.base': 'Each language must be a string',
-            'string.empty': 'Language cannot be an empty string',
+        Joi.string().trim().required().messages({
+            'string.base': 'Language must be a string',
+            'string.empty': 'Language cannot be empty',
         })
     )
     .min(1)
     .required()
     .messages({
-        'array.base': 'Language must be an array',
-        'array.min': 'Language array cannot be empty',
-        'any.required': 'Language field is required',
+        'any.required': 'Languages field is required',
+        'array.base': 'Languages must be an array',
+        'array.min': 'At least one language must be selected',
     });
+
+const languageName = Joi.string().trim().empty().required().messages({
+    'any.required': 'Language field is required',
+    'string.base': ' Language field must be a string',
+    'string.empty': 'Language field is must be a non-empty',
+});
 
 const registerValidationSchema = Joi.object({
     name: name,
@@ -77,22 +82,21 @@ const loginValidationSchema = Joi.object({
     password: password,
 });
 
+const addLanguageValidationSchema = Joi.object({
+    languageName: languageName,
+});
+
 const addStudentValidationSchema = Joi.object({
     studentName: studentName,
     PEN: PEN,
     className: className,
     section: section,
-    language: language,
+    language: languageArray,
 });
 
-const languageName = Joi.string().trim().empty().required().messages({
-    'any.required': 'Language field is required',
-    'string.base': ' Language field must be a string',
-    'string.empty': 'Language field is must be a non-empty',
-});
-
-const addLanguageValidationSchema = Joi.object({
-    languageName: languageName,
+const mapStudentLanguageSchema = Joi.object({
+    PEN,
+    language: languageArray,
 });
 
 export {
@@ -100,4 +104,5 @@ export {
     loginValidationSchema,
     addStudentValidationSchema,
     addLanguageValidationSchema,
+    mapStudentLanguageSchema,
 };
