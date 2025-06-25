@@ -1,0 +1,32 @@
+# [START cloudbuild_builddeploy]
+steps:
+    - id: 'Build Develop Container Image'
+      name: 'asia.gcr.io/cloud-builders/docker:$_DOCKER_VERSION'
+      args: ['build', '-t', 'asia.gcr.io/${PROJECT_ID}/${_SERVICE}:${SHORT_SHA}', '.']
+    - id: 'Push Develop Container Image'
+      name: 'asia.gcr.io/cloud-builders/docker:$_DOCKER_VERSION'
+      args: ['push', 'asia.gcr.io/${PROJECT_ID}/${_SERVICE}:${SHORT_SHA}']
+    - id: 'Deploy to Develop Cloud Run'
+      name: 'asia.gcr.io/cloud-builders/gcloud:$_CLOUDSDK_VERSION'
+      entrypoint: /bin/bash
+      args:
+          - '-c'
+          - |
+              gcloud run deploy ${_SERVICE} \
+                --image asia.gcr.io/${PROJECT_ID}/${_SERVICE}:${SHORT_SHA} \
+                --platform managed
+options:
+    env:
+        - 'CLOUDSDK_RUN_REGION=${_SERVICE_REGION}'
+        - 'GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
+    logging: CLOUD_LOGGING_ONLY
+# Uncomment if skipping teardown to associate build with container image.
+# images:
+# - 'gcr.io/${PROJECT_ID}/${_SERVICE}:${SHORT_SHA}'
+substitutions:
+    _SERVICE: axl-sahayak-services
+    _SAMPLE_DIR: axl-sahayak-services
+    _SERVICE_REGION: asia-south1
+    _CLOUDSDK_VERSION: latest
+    _DOCKER_VERSION: latest
+# [END cloudbuild_builddeploy]
